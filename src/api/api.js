@@ -1,30 +1,31 @@
 // Cihazın harada işlədiyindən asılı olmayaraq canlı Render backend-indən istifadə edirik
 const getBaseUrl = () => {
   if (process.env.REACT_APP_API_URL) return process.env.REACT_APP_API_URL;
-
-  /* ==========================================================================
-     YENİ DƏYİŞİKLİK:
-     Köhnə 'http://localhost:8080' və 'http://10.0.2.2:8080' ünvanları 
-     Render-də canlı olaraq işləyən yeni backend URL-i ilə əvəz edildi.
-     ========================================================================== */
   return 'https://onside-app-backend.onrender.com';
 };
 
 export const apiFetch = async (endpoint, options = {}) => {
-  // Hər sorğu anında URL dinamik hesablanır:
   const BASE_URL = getBaseUrl();
-  let token = localStorage.getItem('token');
   
-  // Bearer prefiksini təmizləyib standart hala gətiririk
-  if (token && token.startsWith('Bearer ')) {
-    token = token.replace('Bearer ', '');
+  // LocalStorage-dən təhlükəsiz token oxunması
+  let token = null;
+  try {
+    token = localStorage.getItem('token');
+  } catch (e) {
+    console.warn('LocalStorage access error:', e);
   }
-
+  
+  // Headers obyektinin hazırlanması
   const headers = {
     'Content-Type': 'application/json',
-    ...(token && { Authorization: `Bearer ${token}` }),
     ...options.headers,
   };
+
+  // Yalnız token həqiqətən VARSA və validdirsə Header-ə əlavə olunur
+  if (token && token !== 'null' && token !== 'undefined') {
+    const cleanToken = token.startsWith('Bearer ') ? token.replace('Bearer ', '') : token;
+    headers['Authorization'] = `Bearer ${cleanToken}`;
+  }
 
   try {
     const response = await fetch(`${BASE_URL}${endpoint}`, {
@@ -34,9 +35,11 @@ export const apiFetch = async (endpoint, options = {}) => {
 
     // 🔴 401 Unauthorized olduqda avtomatik Session Logout
     if (response.status === 401) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('role');
-      window.location.href = '/'; // Giriş ekranına yönləndir
+      try {
+        localStorage.removeItem('token');
+        localStorage.removeItem('role');
+      } catch (e) {}
+      window.location.href = '/';
       throw new Error('Sessiyanın vaxtı bitdi. Yenidən daxil olun.');
     }
 
