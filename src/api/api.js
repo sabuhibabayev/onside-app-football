@@ -1,6 +1,18 @@
-const BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8080';
+// Cihazın harada işlədiyindən asılı olmayaraq canlı Render backend-indən istifadə edirik
+const getBaseUrl = () => {
+  if (process.env.REACT_APP_API_URL) return process.env.REACT_APP_API_URL;
+
+  /* ==========================================================================
+     YENİ DƏYİŞİKLİK:
+     Köhnə 'http://localhost:8080' və 'http://10.0.2.2:8080' ünvanları 
+     Render-də canlı olaraq işləyən yeni backend URL-i ilə əvəz edildi.
+     ========================================================================== */
+  return 'https://onside-app-backend.onrender.com';
+};
 
 export const apiFetch = async (endpoint, options = {}) => {
+  // Hər sorğu anında URL dinamik hesablanır:
+  const BASE_URL = getBaseUrl();
   let token = localStorage.getItem('token');
   
   // Bearer prefiksini təmizləyib standart hala gətiririk

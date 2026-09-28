@@ -12,6 +12,7 @@ import Modal from './components/Modal';
 import Auth from './pages/Auth';
 import { useAuth } from './context/AuthContext';
 
+
 function App() {
   const { token, user, logout } = useAuth();
 
@@ -53,17 +54,13 @@ function App() {
   ];
 
   const fetchGoals = () => {
-    const activeToken = localStorage.getItem('token');
-    fetch('http://localhost:8080/api/goals', {
-      headers: { 'Authorization': `Bearer ${activeToken}` }
+  apiFetch('/api/goals')
+    .then((data) => {
+      if (Array.isArray(data)) setGoalsList(data);
+      else setGoalsList(mockGoals);
     })
-      .then((res) => res.json())
-      .then((data) => {
-        if (Array.isArray(data)) setGoalsList(data);
-        else setGoalsList(mockGoals);
-      })
-      .catch(() => setGoalsList(mockGoals));
-  };
+    .catch(() => setGoalsList(mockGoals));
+};
 
   // REZERVASİYA FORMASI STATE-LƏRİ
   const [resDate, setResDate] = useState('2026-08-15');
@@ -112,11 +109,10 @@ function App() {
   };
 
   const fetchReservations = () => {
-    fetch('http://localhost:8080/api/reservations')
-      .then((res) => res.json())
-      .then((data) => setReservations(Array.isArray(data) ? data : data.content || []))
-      .catch((err) => console.error('Xəta:', err));
-  };
+  apiFetch('/api/reservations')
+    .then((data) => setReservations(Array.isArray(data) ? data : data.content || []))
+    .catch((err) => console.error('Xəta:', err));
+};
 
   const fetchPendingReservations = (fieldId) => {
     if (!fieldId) return;
@@ -166,22 +162,11 @@ function App() {
       description: isLooking ? desc : ''
     };
 
-    fetch('http://localhost:8080/api/reservations', {
+    // apiFetch avtomatik olaraq token-i headers-ə qoyur və düzgün IP-yə göndərir
+    apiFetch('/api/reservations', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': token.startsWith('Bearer ') ? token : `Bearer ${token}`
-      },
       body: JSON.stringify(payload)
     })
-      .then(async (res) => {
-        if (!res.ok) {
-          const errText = await res.text();
-          throw new Error(errText || 'Server xətası');
-        }
-        const text = await res.text();
-        return text ? JSON.parse(text) : {};
-      })
       .then(() => {
         alert('Rezervasiya uğurla yaradıldı! 🎉');
         setSelectedField(null);
@@ -224,26 +209,24 @@ function App() {
   }, [activeNav]);
 
   const handleApproveWaitingUser = (id) => {
-    const activeToken = localStorage.getItem('token');
     const approvedItem = waitingList.find((item) => item.id === id);
 
-    fetch(`http://localhost:8080/api/reservations/${id}/approve`, {
-      method: 'PUT',
-      headers: { 'Authorization': `Bearer ${activeToken}` }
+    // apiFetch avtomatik Bearer Token-i əlavə edir
+    apiFetch(`/api/reservations/${id}/approve`, {
+      method: 'PUT'
     })
-      .then((res) => {
-        if (res.ok) {
-          alert('Müraciət uğurla təsdiqləndi!');
-          setWaitingList((prev) => prev.filter((item) => item.id !== id));
-          if (approvedItem) {
-            setReservations((prev) => [...prev, { ...approvedItem, status: 'APPROVED' }]);
-          }
-          if (adminSelectedField) {
-            fetchPendingReservations(adminSelectedField.id);
-          }
+      .then(() => {
+        alert('Müraciət uğurla təsdiqləndi!');
+        setWaitingList((prev) => prev.filter((item) => item.id !== id));
+        if (approvedItem) {
+          setReservations((prev) => [...prev, { ...approvedItem, status: 'APPROVED' }]);
+        }
+        if (adminSelectedField) {
+          fetchPendingReservations(adminSelectedField.id);
         }
       })
-      .catch(() => {
+      .catch((err) => {
+        console.error('Təsdiqləmə xətası:', err);
         setWaitingList((prev) => prev.filter((item) => item.id !== id));
       });
   };
@@ -284,22 +267,11 @@ function App() {
         : 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=500'
     };
 
-    fetch('http://localhost:8080/api/fields', {
+    // apiFetch avtomatik Bearer Token-i göndərir və IP-yə uyğunlaşdırır
+    apiFetch('/api/fields', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
       body: JSON.stringify(payload)
     })
-      .then(async (res) => {
-        if (!res.ok) {
-          const errText = await res.text();
-          throw new Error(errText || 'Xəta baş verdi');
-        }
-        const text = await res.text();
-        return text ? JSON.parse(text) : {};
-      })
       .then(() => {
         setLoading(false);
         setFieldCreatedSuccess(true);
