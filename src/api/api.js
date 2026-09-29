@@ -133,15 +133,14 @@ export const getLookingForPlayers = () =>
 export const getUserReservationsHistory = () => 
   apiFetch('/api/reservations/my-reservations');
 
-// Goal Video Services
-export const fetchGoalsList = () => 
-  apiFetch('/api/goals');
+// ⭐ Goal Video Services (Yeni Endpoint-lərə Uyğunlaşdırıldı)
+export const fetchGoalsList = (userId) => {
+  const endpoint = userId ? `/api/goals?userId=${userId}` : '/api/goals';
+  return apiFetch(endpoint);
+};
 
-export const getTopGoalVideos = () => 
-  apiFetch('/api/goal-videos/top10');
-
-export const voteGoalVideo = (videoId, userId) => 
-  apiFetch(`/api/goal-videos/${videoId}/vote?userId=${userId}`, { method: 'POST' });
+export const voteGoalVideo = (goalId, userId) => 
+  apiFetch(`/api/goals/${goalId}/vote?userId=${userId}`, { method: 'POST' });
 
 // Other Services
 export const rateUserProfile = (userId, stars) => 

@@ -47,18 +47,19 @@ function App() {
   const [userHistoryList, setUserHistoryList] = useState([]); 
   const [goalsList, setGoalsList] = useState([]);
 
-  // REAL BACKEND-DƏN TOP 10 QOLLARI ÇƏKİRİK (Mock məlumatlar silindi)
-  const fetchGoals = () => {
-    apiFetch('/api/goal-videos/top10')
-      .then((data) => {
-        if (Array.isArray(data)) setGoalsList(data);
-        else setGoalsList([]);
-      })
-      .catch((err) => {
-        console.error('Qol videoları gətirilərkən xəta:', err);
-        setGoalsList([]);
-      });
-  };
+  // REAL BACKEND-DƏN BÜTÜN QOLLARI (və user-in səs statusunu) ÇƏKİRİK
+const fetchGoals = () => {
+  const url = user?.id ? `/api/goals?userId=${user.id}` : '/api/goals';
+  apiFetch(url)
+    .then((data) => {
+      if (Array.isArray(data)) setGoalsList(data);
+      else setGoalsList([]);
+    })
+    .catch((err) => {
+      console.error('Qol videoları gətirilərkən xəta:', err);
+      setGoalsList([]);
+    });
+};
 
   // REZERVASİYA FORMASI STATE-LƏRİ
   const [resDate, setResDate] = useState('2026-08-15');
@@ -384,47 +385,47 @@ function App() {
   }
 
   // ADMİN PANEL SƏHİFƏSİ
-  if (activeNav === 'admin') {
-    return (
-      <>
-        <Admin
-          userData={user}
-          adminSelectedField={adminSelectedField}
-          setAdminSelectedField={setAdminSelectedField}
-          adminActiveTab={adminActiveTab}
-          setAdminActiveTab={setAdminActiveTab}
-          editingField={editingField}
-          setEditingField={setEditingField}
-          editValue={editValue}
-          setEditValue={setEditValue}
-          handleSaveEdit={handleSaveEdit}
-          timeSlotStatus={timeSlotStatus}
-          toggleTimeSlot={toggleTimeSlot}
-          reservations={reservations}
-          waitingList={waitingList}
-          handleApproveWaitingUser={handleApproveWaitingUser}
-          fields={['OWNER', 'ROLE_OWNER'].includes(user?.role) ? (myOwnerFields.length > 0 ? myOwnerFields : fields) : fields}
-          setShowAddFieldModal={setShowAddFieldModal}
-          handleDeleteField={handleDeleteField}
-        />
-        <BottomNav activeNav={activeNav} setActiveNav={setActiveNav} setAdminSelectedField={setAdminSelectedField} />
-        <Modal
-          showAddFieldModal={showAddFieldModal}
-          setShowAddFieldModal={setShowAddFieldModal}
-          fieldCreatedSuccess={fieldCreatedSuccess}
-          setFieldCreatedSuccess={setFieldCreatedSuccess}
-          newField={newField}
-          setNewField={setNewField}
-          availableAmenities={availableAmenities}
-          toggleAmenity={toggleAmenity}
-          handleAddFieldSubmit={handleAddFieldSubmit}
-          loading={loading}
-          setActiveNav={setActiveNav}
-        />
-      </>
-    );
-  }
-
+if (activeNav === 'admin') {
+  return (
+    <>
+      <Admin
+        userData={user}
+        adminSelectedField={adminSelectedField}
+        setAdminSelectedField={setAdminSelectedField}
+        adminActiveTab={adminActiveTab}
+        setAdminActiveTab={setAdminActiveTab}
+        editingField={editingField}
+        setEditingField={setEditingField}
+        editValue={editValue}
+        setEditValue={setEditValue}
+        handleSaveEdit={handleSaveEdit}
+        timeSlotStatus={timeSlotStatus}
+        toggleTimeSlot={toggleTimeSlot}
+        reservations={reservations}
+        waitingList={waitingList}
+        handleApproveWaitingUser={handleApproveWaitingUser}
+        fields={['OWNER', 'ROLE_OWNER'].includes(user?.role) ? (myOwnerFields.length > 0 ? myOwnerFields : fields) : fields}
+        setShowAddFieldModal={setShowAddFieldModal}
+        handleDeleteField={handleDeleteField}
+        setActiveNav={setActiveNav} // ⭐ ƏLAVƏ EDİLDİ
+      />
+      <BottomNav activeNav={activeNav} setActiveNav={setActiveNav} setAdminSelectedField={setAdminSelectedField} />
+      <Modal
+        showAddFieldModal={showAddFieldModal}
+        setShowAddFieldModal={setShowAddFieldModal}
+        fieldCreatedSuccess={fieldCreatedSuccess}
+        setFieldCreatedSuccess={setFieldCreatedSuccess}
+        newField={newField}
+        setNewField={setNewField}
+        availableAmenities={availableAmenities}
+        toggleAmenity={toggleAmenity}
+        handleAddFieldSubmit={handleAddFieldSubmit}
+        loading={loading}
+        setActiveNav={setActiveNav}
+      />
+    </>
+  );
+}
   // DETAL VƏ REZERVASİYA EKRANI
   if (selectedField) {
     return (

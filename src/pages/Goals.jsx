@@ -15,12 +15,10 @@ const Goals = ({ goalsList = [], fetchGoals }) => {
     try {
       setVotingId(goalId);
 
-      // Əgər api.js daxilində getTopGoalVideos/voteGoalVideo eksport olunubsa istifadə edirik,
-      // yoxdursa birbaşa apiFetch vasitəsilə fallback edirik:
       if (typeof voteGoalVideo === 'function') {
         await voteGoalVideo(goalId, user.id);
       } else {
-        await apiFetch(`/api/goal-videos/${goalId}/vote?userId=${user.id}`, { method: 'POST' });
+        await apiFetch(`/api/goals/${goalId}/vote?userId=${user.id}`, { method: 'POST' });
       }
 
       alert('Səsiniz uğurla qeydə alındı! 🎉');
@@ -48,50 +46,57 @@ const Goals = ({ goalsList = [], fetchGoals }) => {
             Hələ ki, heç bir video yüklənməyib.
           </div>
         ) : (
-          goalsList.map((item) => (
-            <div key={item.id} style={{ backgroundColor: '#ffffff', borderRadius: '16px', overflow: 'hidden', marginBottom: '16px', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
-              {/* Peşəkar 16:9 Nisbətində Video Formatı */}
-              <div style={{ width: '100%', aspectRatio: '16/9', backgroundColor: '#000' }}>
-                <video 
-                  controls 
-                  preload="metadata"
-                  style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-                >
-                  <source src={item.videoUrl} type="video/mp4" />
-                  Sizin brauzer video dəstəkləmir.
-                </video>
-              </div>
+          goalsList.map((item) => {
+            // Backend GoalResponse DTO-dan gələn hasVoted statusu
+            const hasVoted = Boolean(item.hasVoted);
 
-              {/* Məlumat və Səs Vermə Paneli */}
-              <div style={{ padding: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <div style={{ fontWeight: 'bold', fontSize: '14px', color: '#111' }}>{item.title}</div>
-                  <div style={{ fontSize: '12px', color: '#777', marginTop: '2px' }}>
-                    Müəllif: {item.ownerName || item.author || 'İstifadəçi'}
-                  </div>
+            return (
+              <div key={item.id} style={{ backgroundColor: '#ffffff', borderRadius: '16px', overflow: 'hidden', marginBottom: '16px', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
+                {/* 16:9 Video Formatı */}
+                <div style={{ width: '100%', aspectRatio: '16/9', backgroundColor: '#000' }}>
+                  <video 
+                    controls 
+                    preload="metadata"
+                    src={item.videoUrl}
+                    style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                  >
+                    Sizin brauzer video dəstəkləmir.
+                  </video>
                 </div>
 
-                <button 
-                  onClick={() => handleVote(item.id)}
-                  disabled={votingId === item.id}
-                  style={{ 
-                    backgroundColor: '#e8f5e9', 
-                    color: '#2e7d32', 
-                    border: '1px solid #2e7d32', 
-                    padding: '8px 14px', 
-                    borderRadius: '12px', 
-                    fontWeight: 'bold', 
-                    fontSize: '13px', 
-                    cursor: 'pointer',
-                    opacity: votingId === item.id ? 0.6 : 1,
-                    transition: '0.2s'
-                  }}
-                >
-                  🔥 {item.voteCount ?? item.votes ?? 0} Səs
-                </button>
+                {/* Məlumat və Səs Vermə Paneli */}
+                <div style={{ padding: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <div style={{ fontWeight: 'bold', fontSize: '14px', color: '#111' }}>
+                      {item.description || item.title || 'Qol Videosu'}
+                    </div>
+                    <div style={{ fontSize: '12px', color: '#777', marginTop: '2px' }}>
+                      Müəllif: {item.userName || item.ownerName || 'İstifadəçi'}
+                    </div>
+                  </div>
+
+                  <button 
+                    onClick={() => handleVote(item.id)}
+                    disabled={votingId === item.id || hasVoted}
+                    style={{ 
+                      backgroundColor: hasVoted ? '#c8e6c9' : '#e8f5e9', 
+                      color: '#2e7d32', 
+                      border: '1px solid #2e7d32', 
+                      padding: '8px 14px', 
+                      borderRadius: '12px', 
+                      fontWeight: 'bold', 
+                      fontSize: '13px', 
+                      cursor: hasVoted ? 'default' : 'pointer',
+                      opacity: votingId === item.id ? 0.6 : 1,
+                      transition: '0.2s'
+                    }}
+                  >
+                    {hasVoted ? '✓ Səs verilib' : `🔥 ${item.votesCount ?? item.voteCount ?? 0} Səs`}
+                  </button>
+                </div>
               </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
     </div>
