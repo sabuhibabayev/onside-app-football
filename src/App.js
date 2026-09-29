@@ -12,7 +12,6 @@ import Modal from './components/Modal';
 import Auth from './pages/Auth';
 import { useAuth } from './context/AuthContext';
 
-
 function App() {
   const { token, user, logout } = useAuth();
 
@@ -54,13 +53,13 @@ function App() {
   ];
 
   const fetchGoals = () => {
-  apiFetch('/api/goals')
-    .then((data) => {
-      if (Array.isArray(data)) setGoalsList(data);
-      else setGoalsList(mockGoals);
-    })
-    .catch(() => setGoalsList(mockGoals));
-};
+    apiFetch('/api/goals')
+      .then((data) => {
+        if (Array.isArray(data)) setGoalsList(data);
+        else setGoalsList(mockGoals);
+      })
+      .catch(() => setGoalsList(mockGoals));
+  };
 
   // REZERVASİYA FORMASI STATE-LƏRİ
   const [resDate, setResDate] = useState('2026-08-15');
@@ -99,20 +98,27 @@ function App() {
 
   // 1️⃣ BÜTÜN FETCH FUNKSİYALARI
 
+  // ⭐ DÜZƏLİŞ 1: myOwnerFields siyahısını dolduran düzgün fetchFields
   const fetchFields = () => {
     apiFetch('/api/fields?size=100&pageSize=100')
       .then((data) => {
-        if (data && data.content) setFields(data.content);
-        else if (Array.isArray(data)) setFields(data);
+        const fieldList = data && data.content ? data.content : (Array.isArray(data) ? data : []);
+        setFields(fieldList);
+
+        // Daxil olmuş istifadəçi Owner-dirsə, onun stadionlarını süzüb myOwnerFields-ə yazırıq
+        if (user && user.id) {
+          const ownerFields = fieldList.filter(f => f.owner?.id === user.id || f.ownerId === user.id);
+          setMyOwnerFields(ownerFields);
+        }
       })
       .catch((err) => console.error('Stadionlar çəkilərkən xəta:', err));
   };
 
   const fetchReservations = () => {
-  apiFetch('/api/reservations')
-    .then((data) => setReservations(Array.isArray(data) ? data : data.content || []))
-    .catch((err) => console.error('Xəta:', err));
-};
+    apiFetch('/api/reservations')
+      .then((data) => setReservations(Array.isArray(data) ? data : data.content || []))
+      .catch((err) => console.error('Xəta:', err));
+  };
 
   const fetchPendingReservations = (fieldId) => {
     if (!fieldId) return;
@@ -162,7 +168,6 @@ function App() {
       description: isLooking ? desc : ''
     };
 
-    // apiFetch avtomatik olaraq token-i headers-ə qoyur və düzgün IP-yə göndərir
     apiFetch('/api/reservations', {
       method: 'POST',
       body: JSON.stringify(payload)
@@ -184,7 +189,7 @@ function App() {
       fetchFields();
       fetchReservations();
     }
-  }, [token]);
+  }, [token, user]);
 
   useEffect(() => {
     if (darkMode) {
@@ -211,7 +216,6 @@ function App() {
   const handleApproveWaitingUser = (id) => {
     const approvedItem = waitingList.find((item) => item.id === id);
 
-    // apiFetch avtomatik Bearer Token-i əlavə edir
     apiFetch(`/api/reservations/${id}/approve`, {
       method: 'PUT'
     })
@@ -231,6 +235,7 @@ function App() {
       });
   };
 
+  // ⭐ DÜZƏLİŞ 2: Şəkil URL-i birbaşa götürülür və şablonla əvəzlənmir
   const handleAddFieldSubmit = (e) => {
     e.preventDefault();
 
@@ -253,21 +258,23 @@ function App() {
 
     const safeAmenities = Array.isArray(newField.amenities) ? newField.amenities : [];
 
+    // İstifadəçinin daxil etdiyi şəkil URL-i tam olaraq götürülür
+    const userImageUrl = (newField.imageUrl && newField.imageUrl.trim() !== '') 
+      ? newField.imageUrl.trim() 
+      : 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=500';
+
     const payload = {
       name: newField.name.trim(),
       address: newField.address.trim(),
       pricePerHour: parsedPrice,
-      coverType: newField.coverType || 'ACIQ',
+      coverType: newField.coverType || 'ARTIFICIAL',
       hasLighting: safeAmenities.includes('ISIKLANDIRMA') || safeAmenities.includes('İşıqlandırma'),
       hasShower: safeAmenities.includes('DUST') || safeAmenities.includes('Duş'),
       fieldSize: newField.fieldSize || '40x20',
       maxPlayers: parseInt(newField.maxPlayers, 10) || 12,
-      imageUrl: (newField.imageUrl && newField.imageUrl.trim()) 
-        ? newField.imageUrl.trim() 
-        : 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=500'
+      imageUrl: userImageUrl
     };
 
-    // apiFetch avtomatik Bearer Token-i göndərir və IP-yə uyğunlaşdırır
     apiFetch('/api/fields', {
       method: 'POST',
       body: JSON.stringify(payload)
@@ -275,9 +282,21 @@ function App() {
       .then(() => {
         setLoading(false);
         setFieldCreatedSuccess(true);
-        if (typeof fetchFields === 'function') {
-          fetchFields();
-        }
+
+        // Formanı təmizləyirik
+        setNewField({
+          name: '',
+          address: '',
+          pricePerHour: '',
+          fieldSize: '40x20',
+          maxPlayers: '12',
+          coverType: 'ARTIFICIAL',
+          imageUrl: '',
+          amenities: []
+        });
+
+        // Yeni əlavə olunmuş stadionu yenidən backend-dən çəkirik
+        fetchFields();
       })
       .catch((err) => {
         setLoading(false);
@@ -313,27 +332,28 @@ function App() {
     e.stopPropagation();
     if (window.confirm('Bu stadionu silməyə əminsiniz?')) {
       setFields((prev) => prev.filter((f) => f.id !== id));
+      setMyOwnerFields((prev) => prev.filter((f) => f.id !== id));
     }
   };
 
   // Filtrləmə məntiqi
   const filteredFields = fields.filter((field) => {
-  const matchesSearch =
-    !searchTerm ||
-    field.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    field.address?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch =
+      !searchTerm ||
+      field.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      field.address?.toLowerCase().includes(searchTerm.toLowerCase());
 
-  const cover = String(field.coverType || '').toUpperCase();
+    const cover = String(field.coverType || '').toUpperCase();
 
-  if (filterType === 'OUTDOOR') {
-    return matchesSearch && cover !== 'INDOOR' && cover !== 'QAPALI';
-  }
-  if (filterType === 'INDOOR') {
-    return matchesSearch && (cover === 'INDOOR' || cover === 'QAPALI');
-  }
+    if (filterType === 'OUTDOOR') {
+      return matchesSearch && cover !== 'INDOOR' && cover !== 'QAPALI';
+    }
+    if (filterType === 'INDOOR') {
+      return matchesSearch && (cover === 'INDOOR' || cover === 'QAPALI');
+    }
 
-  return matchesSearch;
-});
+    return matchesSearch;
+  });
 
   // LOGIN EKRANI
   if (!token) {
@@ -390,7 +410,7 @@ function App() {
           reservations={reservations}
           waitingList={waitingList}
           handleApproveWaitingUser={handleApproveWaitingUser}
-          fields={['OWNER', 'ROLE_OWNER'].includes(user?.role) ? myOwnerFields : fields}
+          fields={['OWNER', 'ROLE_OWNER'].includes(user?.role) ? (myOwnerFields.length > 0 ? myOwnerFields : fields) : fields}
           setShowAddFieldModal={setShowAddFieldModal}
           handleDeleteField={handleDeleteField}
         />
@@ -472,14 +492,14 @@ function App() {
   return (
     <>
       <Home
-  searchTerm={searchTerm}
-  setSearchTerm={setSearchTerm}
-  filterType={filterType}
-  setFilterType={setFilterType}
-  filteredFields={fields} // Bütün stadionlar massivi Home-a ötürülür
-  setSelectedField={setSelectedField}
-  userData={user}
-/>
+        searchTerm={searchTerm}
+        setSearchTerm={setSearchTerm}
+        filterType={filterType}
+        setFilterType={setFilterType}
+        filteredFields={filteredFields}
+        setSelectedField={setSelectedField}
+        userData={user}
+      />
       <BottomNav activeNav={activeNav} setActiveNav={setActiveNav} setAdminSelectedField={setAdminSelectedField} />
     </>
   );
