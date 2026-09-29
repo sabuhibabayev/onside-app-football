@@ -133,9 +133,16 @@ export const getLookingForPlayers = () =>
 export const getUserReservationsHistory = () => 
   apiFetch('/api/reservations/my-reservations');
 
-// Other Services
+// Goal Video Services
 export const fetchGoalsList = () => 
   apiFetch('/api/goals');
 
+export const getTopGoalVideos = () => 
+  apiFetch('/api/goal-videos/top10');
+
+export const voteGoalVideo = (videoId, userId) => 
+  apiFetch(`/api/goal-videos/${videoId}/vote?userId=${userId}`, { method: 'POST' });
+
+// Other Services
 export const rateUserProfile = (userId, stars) => 
   apiFetch(`/api/users/${userId}/rate?stars=${stars}`, { method: 'POST' });
