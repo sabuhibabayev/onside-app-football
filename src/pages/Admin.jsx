@@ -22,11 +22,23 @@ const Admin = ({
   handleApproveWaitingUser,
   fields = [],
   setShowAddFieldModal,
-  handleDeleteField
+  handleDeleteField,
+  setActiveNav // ⭐ DÜZƏLİŞ: Profil səhifəsinə qayıtmaq üçün əlavə olundu
 }) => {
   const [pendingReservations, setPendingReservations] = useState([]);
   const [activeReservations, setActiveReservations] = useState([]);
   const [loadingPending, setLoadingPending] = useState(false);
+
+  // Mərkəzi Geri Düyməsi İdarəsi
+  const handleBackNavigation = () => {
+    if (adminSelectedField) {
+      // Əgər stadionun təfərrüatındadısa, əvvəlcə admin siyahısına qayıdır
+      setAdminSelectedField(null);
+    } else if (setActiveNav) {
+      // Əgər admin panelin kök səhifəsindədirsə, Profil səhifəsinə qayıdır
+      setActiveNav('profile');
+    }
+  };
 
   // Seçilmiş stadion dəyişdikdə Data Çəkilməsi
   useEffect(() => {
@@ -100,7 +112,7 @@ const Admin = ({
       <div style={styles.container}>
         {/* Header */}
         <div style={styles.header}>
-          <button onClick={() => setAdminSelectedField(null)} style={styles.backBtn}>←</button>
+          <button onClick={handleBackNavigation} style={styles.backBtn}>←</button>
           <h2 style={styles.headerTitle}>Stadion idarəsi</h2>
         </div>
 
@@ -186,7 +198,7 @@ const Admin = ({
                 })}
               </div>
 
-              <button onClick={() => setAdminSelectedField(null)} style={styles.fullWidthBtn}>Siyahıya Qayıt</button>
+              <button onClick={handleBackNavigation} style={styles.fullWidthBtn}>Siyahıya Qayıt</button>
             </div>
           )}
 
@@ -270,7 +282,7 @@ const Admin = ({
   return (
     <div style={styles.container}>
       <div style={styles.header}>
-        <button onClick={() => setAdminSelectedField(null)} style={styles.backBtn}>←</button>
+        <button onClick={handleBackNavigation} style={styles.backBtn}>←</button>
         <h2 style={styles.headerTitle}>🛠️ Admin Panel</h2>
       </div>
 
@@ -328,7 +340,7 @@ const FieldEditCard = ({ label, fieldKey, value, type = 'text', editingField, se
   </div>
 );
 
-// Mərkəzi Stil Obyekti (CSS-in Təmizlənməsi)
+// Mərkəzi Stil Obyekti
 const styles = {
   container: { backgroundColor: '#f6f6f2', minHeight: '100vh', paddingBottom: '80px', fontFamily: 'sans-serif' },
   header: { backgroundColor: '#f6f6f2', padding: '16px 20px', display: 'flex', alignItems: 'center', borderBottom: '1px solid #e5e5dd' },

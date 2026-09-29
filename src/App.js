@@ -3,7 +3,7 @@ import BottomNav from './components/BottomNav';
 import Goals from './pages/Goals';
 import History from './pages/History';
 import Players from './pages/Players';
-import { apiFetch } from './api/api';
+import { apiFetch, getTopGoalVideos } from './api/api';
 import Profile from './pages/Profile';
 import Admin from './pages/Admin';
 import Home from './pages/Home';
@@ -48,17 +48,27 @@ function App() {
   const [goalsList, setGoalsList] = useState([]);
 
   const mockGoals = [
-    { id: 1, title: 'Həftənin Qolu: Akrobatik Vuruş 🚀', author: 'Elvin M.', votes: 42, videoUrl: 'https://www.w3schools.com/html/mov_bbb.mp4' },
-    { id: 2, title: 'Uzaq Məsafədən Məsafəli Şut ⚽🔥', author: 'Səbuhi B.', votes: 29, videoUrl: 'https://www.w3schools.com/html/mov_bbb.mp4' }
+    { id: 1, title: 'Həftənin Qolu: Akrobatik Vuruş 🚀', ownerName: 'Elvin M.', voteCount: 42, videoUrl: 'https://www.w3schools.com/html/mov_bbb.mp4' },
+    { id: 2, title: 'Uzaq Məsafədən Məsafəli Şut ⚽🔥', ownerName: 'Səbuhi B.', voteCount: 29, videoUrl: 'https://www.w3schools.com/html/mov_bbb.mp4' }
   ];
 
+  // REAL BACKEND-DƏN TOP 10 QOLLARI ÇƏKİRİK
   const fetchGoals = () => {
-    apiFetch('/api/goals')
-      .then((data) => {
-        if (Array.isArray(data)) setGoalsList(data);
-        else setGoalsList(mockGoals);
-      })
-      .catch(() => setGoalsList(mockGoals));
+    if (typeof getTopGoalVideos === 'function') {
+      getTopGoalVideos()
+        .then((data) => {
+          if (Array.isArray(data) && data.length > 0) setGoalsList(data);
+          else setGoalsList(mockGoals);
+        })
+        .catch(() => setGoalsList(mockGoals));
+    } else {
+      apiFetch('/api/goal-videos/top10')
+        .then((data) => {
+          if (Array.isArray(data) && data.length > 0) setGoalsList(data);
+          else setGoalsList(mockGoals);
+        })
+        .catch(() => setGoalsList(mockGoals));
+    }
   };
 
   // REZERVASİYA FORMASI STATE-LƏRİ
@@ -98,14 +108,12 @@ function App() {
 
   // 1️⃣ BÜTÜN FETCH FUNKSİYALARI
 
-  // ⭐ DÜZƏLİŞ 1: myOwnerFields siyahısını dolduran düzgün fetchFields
   const fetchFields = () => {
     apiFetch('/api/fields?size=100&pageSize=100')
       .then((data) => {
         const fieldList = data && data.content ? data.content : (Array.isArray(data) ? data : []);
         setFields(fieldList);
 
-        // Daxil olmuş istifadəçi Owner-dirsə, onun stadionlarını süzüb myOwnerFields-ə yazırıq
         if (user && user.id) {
           const ownerFields = fieldList.filter(f => f.owner?.id === user.id || f.ownerId === user.id);
           setMyOwnerFields(ownerFields);
@@ -235,7 +243,6 @@ function App() {
       });
   };
 
-  // ⭐ DÜZƏLİŞ 2: Şəkil URL-i birbaşa götürülür və şablonla əvəzlənmir
   const handleAddFieldSubmit = (e) => {
     e.preventDefault();
 
@@ -258,7 +265,6 @@ function App() {
 
     const safeAmenities = Array.isArray(newField.amenities) ? newField.amenities : [];
 
-    // İstifadəçinin daxil etdiyi şəkil URL-i tam olaraq götürülür
     const userImageUrl = (newField.imageUrl && newField.imageUrl.trim() !== '') 
       ? newField.imageUrl.trim() 
       : 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=500';
@@ -283,7 +289,6 @@ function App() {
         setLoading(false);
         setFieldCreatedSuccess(true);
 
-        // Formanı təmizləyirik
         setNewField({
           name: '',
           address: '',
@@ -295,7 +300,6 @@ function App() {
           amenities: []
         });
 
-        // Yeni əlavə olunmuş stadionu yenidən backend-dən çəkirik
         fetchFields();
       })
       .catch((err) => {

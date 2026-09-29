@@ -1,16 +1,24 @@
 import React from 'react';
 import { apiFetch } from '../api/api';
+import { useAuth } from '../context/AuthContext';
 
 const Goals = ({ goalsList, fetchGoals }) => {
+  const { user } = useAuth();
+
   const handleVote = (goalId) => {
-    apiFetch(`/api/goals/${goalId}/vote`, { method: 'POST' })
+    if (!user || !user.id) {
+      alert('Səs vermək üçün hesaba daxil olmalısınız!');
+      return;
+    }
+
+    apiFetch(`/api/goal-videos/${goalId}/vote?userId=${user.id}`, { method: 'POST' })
       .then(() => {
         alert('Səsiniz uğurla qeydə alındı! 🎉');
         if (fetchGoals) fetchGoals();
       })
       .catch((err) => {
         console.error('Səsvermə xətası:', err);
-        alert('Səs verərkən xəta baş verdi və ya artıq səs vermisiniz.');
+        alert(err.message || 'Səs verərkən xəta baş verdi və ya artıq səs vermisiniz.');
       });
   };
 
@@ -30,13 +38,13 @@ const Goals = ({ goalsList, fetchGoals }) => {
             <div style={{ padding: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
                 <div style={{ fontWeight: 'bold', fontSize: '14px', color: '#111' }}>{item.title}</div>
-                <div style={{ fontSize: '12px', color: '#777', marginTop: '2px' }}>Müəllif: {item.author || item.user?.fullName || 'İstifadəçi'}</div>
+                <div style={{ fontSize: '12px', color: '#777', marginTop: '2px' }}>Müəllif: {item.ownerName || item.author || 'İstifadəçi'}</div>
               </div>
               <button 
                 onClick={() => handleVote(item.id)}
                 style={{ backgroundColor: '#e8f5e9', color: '#2e7d32', border: '1px solid #2e7d32', padding: '8px 14px', borderRadius: '12px', fontWeight: 'bold', fontSize: '13px', cursor: 'pointer' }}
               >
-                🔥 {item.votes || item.voteCount || 0} Səs
+                🔥 {item.voteCount ?? item.votes ?? 0} Səs
               </button>
             </div>
           </div>
