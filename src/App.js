@@ -3,7 +3,7 @@ import BottomNav from './components/BottomNav';
 import Goals from './pages/Goals';
 import History from './pages/History';
 import Players from './pages/Players';
-import { apiFetch, getTopGoalVideos } from './api/api';
+import * as ApiService from './api/api';
 import Profile from './pages/Profile';
 import Admin from './pages/Admin';
 import Home from './pages/Home';
@@ -52,22 +52,24 @@ function App() {
     { id: 2, title: 'Uzaq Məsafədən Məsafəli Şut ⚽🔥', ownerName: 'Səbuhi B.', voteCount: 29, videoUrl: 'https://www.w3schools.com/html/mov_bbb.mp4' }
   ];
 
-  // REAL BACKEND-DƏN TOP 10 QOLLARI ÇƏKİRİK
+  // QOLLARI SƏLİQƏLİ VƏ XƏTASIZ ÇƏKİRİK
   const fetchGoals = () => {
-    if (typeof getTopGoalVideos === 'function') {
-      getTopGoalVideos()
+    if (typeof ApiService.getTopGoalVideos === 'function') {
+      ApiService.getTopGoalVideos()
+        .then((data) => {
+          if (Array.isArray(data) && data.length > 0) setGoalsList(data);
+          else setGoalsList(mockGoals);
+        })
+        .catch(() => setGoalsList(mockGoals));
+    } else if (typeof ApiService.apiFetch === 'function') {
+      ApiService.apiFetch('/api/goal-videos/top10')
         .then((data) => {
           if (Array.isArray(data) && data.length > 0) setGoalsList(data);
           else setGoalsList(mockGoals);
         })
         .catch(() => setGoalsList(mockGoals));
     } else {
-      apiFetch('/api/goal-videos/top10')
-        .then((data) => {
-          if (Array.isArray(data) && data.length > 0) setGoalsList(data);
-          else setGoalsList(mockGoals);
-        })
-        .catch(() => setGoalsList(mockGoals));
+      setGoalsList(mockGoals);
     }
   };
 
@@ -109,7 +111,7 @@ function App() {
   // 1️⃣ BÜTÜN FETCH FUNKSİYALARI
 
   const fetchFields = () => {
-    apiFetch('/api/fields?size=100&pageSize=100')
+    ApiService.apiFetch('/api/fields?size=100&pageSize=100')
       .then((data) => {
         const fieldList = data && data.content ? data.content : (Array.isArray(data) ? data : []);
         setFields(fieldList);
@@ -123,14 +125,14 @@ function App() {
   };
 
   const fetchReservations = () => {
-    apiFetch('/api/reservations')
+    ApiService.apiFetch('/api/reservations')
       .then((data) => setReservations(Array.isArray(data) ? data : data.content || []))
       .catch((err) => console.error('Xəta:', err));
   };
 
   const fetchPendingReservations = (fieldId) => {
     if (!fieldId) return;
-    apiFetch(`/api/reservations/field/${fieldId}/pending`)
+    ApiService.apiFetch(`/api/reservations/field/${fieldId}/pending`)
       .then((data) => {
         if (Array.isArray(data)) setWaitingList(data);
         else setWaitingList([]);
@@ -139,7 +141,7 @@ function App() {
   };
 
   const fetchPlayersSearch = () => {
-    apiFetch('/api/reservations/looking-for-players')
+    ApiService.apiFetch('/api/reservations/looking-for-players')
       .then((data) => {
         if (Array.isArray(data)) setLookingForPlayersList(data);
       })
@@ -147,7 +149,7 @@ function App() {
   };
 
   const fetchUserHistory = () => {
-    apiFetch('/api/reservations/my-reservations')
+    ApiService.apiFetch('/api/reservations/my-reservations')
       .then((data) => {
         if (Array.isArray(data)) setUserHistoryList(data);
         else setUserHistoryList(reservations);
@@ -176,7 +178,7 @@ function App() {
       description: isLooking ? desc : ''
     };
 
-    apiFetch('/api/reservations', {
+    ApiService.apiFetch('/api/reservations', {
       method: 'POST',
       body: JSON.stringify(payload)
     })
@@ -224,7 +226,7 @@ function App() {
   const handleApproveWaitingUser = (id) => {
     const approvedItem = waitingList.find((item) => item.id === id);
 
-    apiFetch(`/api/reservations/${id}/approve`, {
+    ApiService.apiFetch(`/api/reservations/${id}/approve`, {
       method: 'PUT'
     })
       .then(() => {
@@ -281,7 +283,7 @@ function App() {
       imageUrl: userImageUrl
     };
 
-    apiFetch('/api/fields', {
+    ApiService.apiFetch('/api/fields', {
       method: 'POST',
       body: JSON.stringify(payload)
     })
