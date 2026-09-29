@@ -47,28 +47,17 @@ function App() {
   const [userHistoryList, setUserHistoryList] = useState([]); 
   const [goalsList, setGoalsList] = useState([]);
 
-  const mockGoals = [
-    { id: 1, title: 'Həftənin Qolu: Akrobatik Vuruş 🚀', ownerName: 'Elvin M.', voteCount: 42, videoUrl: 'https://www.w3schools.com/html/mov_bbb.mp4' },
-    { id: 2, title: 'Uzaq Məsafədən Məsafəli Şut ⚽🔥', ownerName: 'Səbuhi B.', voteCount: 29, videoUrl: 'https://www.w3schools.com/html/mov_bbb.mp4' }
-  ];
-
-  // REAL BACKEND-DƏN TOP 10 QOLLARI ÇƏKİRİK
+  // REAL BACKEND-DƏN TOP 10 QOLLARI ÇƏKİRİK (Mock məlumatlar silindi)
   const fetchGoals = () => {
-    if (typeof getTopGoalVideos === 'function') {
-      getTopGoalVideos()
-        .then((data) => {
-          if (Array.isArray(data) && data.length > 0) setGoalsList(data);
-          else setGoalsList(mockGoals);
-        })
-        .catch(() => setGoalsList(mockGoals));
-    } else {
-      apiFetch('/api/goal-videos/top10')
-        .then((data) => {
-          if (Array.isArray(data) && data.length > 0) setGoalsList(data);
-          else setGoalsList(mockGoals);
-        })
-        .catch(() => setGoalsList(mockGoals));
-    }
+    apiFetch('/api/goal-videos/top10')
+      .then((data) => {
+        if (Array.isArray(data)) setGoalsList(data);
+        else setGoalsList([]);
+      })
+      .catch((err) => {
+        console.error('Qol videoları gətirilərkən xəta:', err);
+        setGoalsList([]);
+      });
   };
 
   // REZERVASİYA FORMASI STATE-LƏRİ

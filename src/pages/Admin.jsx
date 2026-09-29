@@ -2,7 +2,8 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { 
   getPendingReservations, 
   getActiveReservations, 
-  approveReservation 
+  approveReservation,
+  apiFetch
 } from '../api/api';
 
 const Admin = ({
@@ -23,19 +24,24 @@ const Admin = ({
   fields = [],
   setShowAddFieldModal,
   handleDeleteField,
-  setActiveNav // ⭐ DÜZƏLİŞ: Profil səhifəsinə qayıtmaq üçün əlavə olundu
+  setActiveNav
 }) => {
   const [pendingReservations, setPendingReservations] = useState([]);
   const [activeReservations, setActiveReservations] = useState([]);
   const [loadingPending, setLoadingPending] = useState(false);
 
+  // VIDEO YÜKLƏMƏ STATE-LƏRİ
+  const [showVideoModal, setShowVideoModal] = useState(false);
+  const [videoTitle, setVideoTitle] = useState('');
+  const [videoFile, setVideoFile] = useState(null);
+  const [videoUrlInput, setVideoUrlInput] = useState('');
+  const [uploadingVideo, setUploadingVideo] = useState(false);
+
   // Mərkəzi Geri Düyməsi İdarəsi
   const handleBackNavigation = () => {
     if (adminSelectedField) {
-      // Əgər stadionun təfərrüatındadısa, əvvəlcə admin siyahısına qayıdır
       setAdminSelectedField(null);
     } else if (setActiveNav) {
-      // Əgər admin panelin kök səhifəsindədirsə, Profil səhifəsinə qayıdır
       setActiveNav('profile');
     }
   };
@@ -70,7 +76,6 @@ const Admin = ({
       const approvedRes = await approveReservation(reservationId);
       alert('Rezervasiya uğurla təsdiqləndi! 🎉');
 
-      // State-ləri optimistic update edirik
       setPendingReservations(prev => prev.filter(item => item.id !== reservationId));
       if (approvedRes) {
         setActiveReservations(prev => [...prev, approvedRes]);
@@ -81,6 +86,62 @@ const Admin = ({
       }
     } catch (err) {
       alert(`Təsdiqləmə xətası: ${err.message || 'Xəta baş verdi'}`);
+    }
+  };
+
+  // VIDEO YÜKLƏMƏ SORĞUSU
+  const handleUploadGoalVideo = async (e) => {
+    e.preventDefault();
+    if (!videoTitle.trim()) {
+      alert('Zəhmət olmasa başlığı daxil edin!');
+      return;
+    }
+
+    setUploadingVideo(true);
+
+    try {
+      // Əgər fayl seçilibsə Multipart/Form-Data göndəririk, yoxsa URL göndəririk
+      let payload;
+      let isFormData = false;
+
+      if (videoFile) {
+        isFormData = true;
+        const formData = new FormData();
+        formData.append('title', videoTitle);
+        formData.append('file', videoFile);
+        if (adminSelectedField?.id) {
+          formData.append('fieldId', adminSelectedField.id);
+        }
+        payload = formData;
+      } else {
+        payload = {
+          title: videoTitle,
+          videoUrl: videoUrlInput.trim(),
+          fieldId: adminSelectedField?.id || null
+        };
+      }
+
+      const options = {
+        method: 'POST',
+        body: isFormData ? payload : JSON.stringify(payload)
+      };
+
+      if (!isFormData) {
+        options.headers = { 'Content-Type': 'application/json' };
+      }
+
+      await apiFetch('/api/goal-videos', options);
+
+      alert('Qol videosu uğurla əlavə edildi! ⚽🔥');
+      setShowVideoModal(false);
+      setVideoTitle('');
+      setVideoFile(null);
+      setVideoUrlInput('');
+    } catch (err) {
+      console.error('Video yükləmə xətası:', err);
+      alert('Video əlavə edilərkən xəta baş verdi: ' + (err.message || 'Server xətası'));
+    } finally {
+      setUploadingVideo(false);
     }
   };
 
@@ -113,7 +174,7 @@ const Admin = ({
         {/* Header */}
         <div style={styles.header}>
           <button onClick={handleBackNavigation} style={styles.backBtn}>←</button>
-          <h2 style={styles.headerTitle}>Stadion idarəsi</h2>
+          <h2 style={styles.headerTitle}>{adminSelectedField.name} - İdarəetmə</h2>
         </div>
 
         <div style={styles.content}>
@@ -136,6 +197,11 @@ const Admin = ({
           {/* TAB 1: MƏLUMATLAR */}
           {adminActiveTab === 'info' && (
             <div>
+              {/* VIDEO YÜKLƏMƏ DÜYMƏSİ */}
+              <button onClick={() => setShowVideoModal(true)} style={styles.uploadVideoBtn}>
+                📹 Həftənin Qolu Videosu Yüklə
+              </button>
+
               <h4 style={styles.sectionTitle}>Stadion ayarları</h4>
               
               <FieldEditCard 
@@ -205,13 +271,12 @@ const Admin = ({
           {/* TAB 2: RANDEVU & GÖZLƏMƏ */}
           {(adminActiveTab === 'reservations' || adminActiveTab === 'pending') && (
             <div>
-              {/* Status banner */}
               <div style={styles.statusBanner}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <span style={{ fontSize: '20px' }}>🔴</span>
                   <div>
-                    <div style={{ fontWeight: 'bold', fontSize: '14px', color: '#d84315' }}>İndi məşğuldur</div>
-                    <div style={{ fontSize: '12px', color: '#bf360c' }}>21:00-dək doludur</div>
+                    <div style={{ fontWeight: 'bold', fontSize: '14px', color: '#d84315' }}>Canlı Rejim</div>
+                    <div style={{ fontSize: '12px', color: '#bf360c' }}>Stadion Aktivdir</div>
                   </div>
                 </div>
                 <span style={styles.activeTag}>Aktiv</span>
@@ -274,6 +339,68 @@ const Admin = ({
             </div>
           )}
         </div>
+
+        {/* QOL VIDEOSU YÜKLƏMƏ MODALI */}
+        {showVideoModal && (
+          <div style={styles.modalOverlay}>
+            <div style={styles.modalContent}>
+              <h3 style={{ margin: '0 0 15px 0', fontSize: '16px', color: '#111' }}>⚽ Qol Videosu Əlavə Et</h3>
+              <form onSubmit={handleUploadGoalVideo}>
+                <div style={{ marginBottom: '12px' }}>
+                  <label style={styles.label}>Qol Başlığı / Təsviri</label>
+                  <input 
+                    type="text" 
+                    placeholder="məs: Elvin - Mükəmməl uzaq zərbə!" 
+                    value={videoTitle}
+                    onChange={(e) => setVideoTitle(e.target.value)}
+                    style={styles.modalInput}
+                    required
+                  />
+                </div>
+
+                <div style={{ marginBottom: '12px' }}>
+                  <label style={styles.label}>Fayldan Video Seç (MP4)</label>
+                  <input 
+                    type="file" 
+                    accept="video/*"
+                    onChange={(e) => setVideoFile(e.target.files[0])}
+                    style={{ fontSize: '12px', width: '100%' }}
+                  />
+                </div>
+
+                <div style={{ textAlign: 'center', margin: '10px 0', color: '#888', fontSize: '12px' }}>və ya</div>
+
+                <div style={{ marginBottom: '15px' }}>
+                  <label style={styles.label}>Direct Video Linki (URL)</label>
+                  <input 
+                    type="url" 
+                    placeholder="https://example.com/video.mp4" 
+                    value={videoUrlInput}
+                    onChange={(e) => setVideoUrlInput(e.target.value)}
+                    style={styles.modalInput}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <button 
+                    type="button" 
+                    onClick={() => setShowVideoModal(false)}
+                    style={styles.cancelBtn}
+                  >
+                    Ləğv et
+                  </button>
+                  <button 
+                    type="submit" 
+                    disabled={uploadingVideo}
+                    style={styles.submitBtn}
+                  >
+                    {uploadingVideo ? 'Yüklənir...' : 'Yüklə'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -287,6 +414,11 @@ const Admin = ({
       </div>
 
       <div style={styles.content}>
+        {/* Ümumi Qol Videosu Yükləmə Düyməsi */}
+        <button onClick={() => setShowVideoModal(true)} style={{ ...styles.uploadVideoBtn, marginBottom: '20px' }}>
+          📹 Həftənin Qolu Videosunu Əlavə Et
+        </button>
+
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
           <h3 style={{ margin: 0, fontSize: '16px', color: '#222', fontWeight: 'bold' }}>Stadionlarım ({fields.length})</h3>
           <button onClick={() => setShowAddFieldModal(true)} style={styles.addBtn}>+ Əlavə et</button>
@@ -314,6 +446,68 @@ const Admin = ({
           ))}
         </div>
       </div>
+
+      {/* MODAL (KÖK PANELDƏN) */}
+      {showVideoModal && (
+        <div style={styles.modalOverlay}>
+          <div style={styles.modalContent}>
+            <h3 style={{ margin: '0 0 15px 0', fontSize: '16px', color: '#111' }}>⚽ Qol Videosu Əlavə Et</h3>
+            <form onSubmit={handleUploadGoalVideo}>
+              <div style={{ marginBottom: '12px' }}>
+                <label style={styles.label}>Qol Başlığı / Təsviri</label>
+                <input 
+                  type="text" 
+                  placeholder="məs: Elvin - Mükəmməl uzaq zərbə!" 
+                  value={videoTitle}
+                  onChange={(e) => setVideoTitle(e.target.value)}
+                  style={styles.modalInput}
+                  required
+                />
+              </div>
+
+              <div style={{ marginBottom: '12px' }}>
+                <label style={styles.label}>Fayldan Video Seç (MP4)</label>
+                <input 
+                  type="file" 
+                  accept="video/*"
+                  onChange={(e) => setVideoFile(e.target.files[0])}
+                  style={{ fontSize: '12px', width: '100%' }}
+                />
+              </div>
+
+              <div style={{ textAlign: 'center', margin: '8px 0', color: '#888', fontSize: '12px' }}>və ya</div>
+
+              <div style={{ marginBottom: '15px' }}>
+                <label style={styles.label}>Direct Video Linki (URL)</label>
+                <input 
+                  type="url" 
+                  placeholder="https://example.com/video.mp4" 
+                  value={videoUrlInput}
+                  onChange={(e) => setVideoUrlInput(e.target.value)}
+                  style={styles.modalInput}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button 
+                  type="button" 
+                  onClick={() => setShowVideoModal(false)}
+                  style={styles.cancelBtn}
+                >
+                  Ləğv et
+                </button>
+                <button 
+                  type="submit" 
+                  disabled={uploadingVideo}
+                  style={styles.submitBtn}
+                >
+                  {uploadingVideo ? 'Yüklənir...' : 'Yüklə'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -370,7 +564,16 @@ const styles = {
   addBtn: { backgroundColor: '#e8f5e9', color: '#2e7d32', border: 'none', padding: '8px 14px', borderRadius: '12px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer' },
   fieldCard: { backgroundColor: '#ffffff', padding: '14px 16px', borderRadius: '16px', marginBottom: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 2px 6px rgba(0,0,0,0.02)', cursor: 'pointer' },
   fieldImg: { width: '50px', height: '50px', borderRadius: '10px', objectFit: 'cover' },
-  deleteBtn: { backgroundColor: '#fce8e6', color: '#d93025', border: 'none', padding: '6px 12px', borderRadius: '8px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }
+  deleteBtn: { backgroundColor: '#fce8e6', color: '#d93025', border: 'none', padding: '6px 12px', borderRadius: '8px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' },
+  
+  // Video Yükləmə Stilləri
+  uploadVideoBtn: { width: '100%', padding: '12px', backgroundColor: '#1b5e20', color: '#ffffff', border: 'none', borderRadius: '12px', fontWeight: 'bold', fontSize: '13px', cursor: 'pointer', marginBottom: '16px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', boxShadow: '0 4px 10px rgba(27,94,32,0.2)' },
+  modalOverlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, padding: '20px' },
+  modalContent: { backgroundColor: '#ffffff', borderRadius: '20px', padding: '20px', width: '100%', maxWidth: '380px', boxShadow: '0 10px 25px rgba(0,0,0,0.1)' },
+  label: { fontSize: '12px', fontWeight: 'bold', color: '#555', display: 'block', marginBottom: '4px' },
+  modalInput: { width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1px solid #ccc', fontSize: '13px', boxSizing: 'border-box' },
+  cancelBtn: { flex: 1, padding: '10px', backgroundColor: '#f5f5f5', color: '#666', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' },
+  submitBtn: { flex: 1, padding: '10px', backgroundColor: '#2e7d32', color: '#fff', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }
 };
 
 export default Admin;
