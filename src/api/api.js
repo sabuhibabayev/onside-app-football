@@ -11,12 +11,16 @@ export const apiFetch = async (endpoint, options = {}) => {
   } catch (e) {
     console.warn('LocalStorage access error:', e);
   }
+
+  const isFormData = options.body instanceof FormData;
   
   // Headers hazırlanması
-  const headers = {
-    'Content-Type': 'application/json',
-    ...options.headers,
-  };
+  const headers = { ...options.headers };
+
+  // ⚠️ FormData olduqda Content-Type header-i verilmir (Browser/Http native özü boundary təyin etməlidir)
+  if (!isFormData && !headers['Content-Type']) {
+    headers['Content-Type'] = 'application/json';
+  }
 
   if (token && token !== 'null' && token !== 'undefined') {
     const cleanToken = token.startsWith('Bearer ') ? token.replace('Bearer ', '') : token;
@@ -26,14 +30,24 @@ export const apiFetch = async (endpoint, options = {}) => {
   const url = `${BASE_URL}${endpoint}`;
   const method = (options.method || 'GET').toUpperCase();
 
+  // Body hazırlanması (FormData olduqda olduğu kimi saxlanılır)
+  let requestData = options.body;
+  if (!isFormData && options.body && typeof options.body === 'string') {
+    try {
+      requestData = JSON.parse(options.body);
+    } catch {
+      requestData = options.body;
+    }
+  }
+
   try {
-    // 🟢 Əgər tətbiq Mobil Cihazda (Android) işləyirsə, DOĞMA NATIVE HTTP çağırırıq (CORS və 10.0.2.2 xətalarını yan keçir)
+    // 🟢 Əgər tətbiq Mobil Cihazda (Android) işləyirsə
     if (Capacitor.isNativePlatform()) {
       const response = await CapacitorHttp.request({
         url,
         method,
         headers,
-        data: options.body ? JSON.parse(options.body) : undefined,
+        data: requestData,
       });
 
       if (response.status === 401) {
@@ -53,12 +67,22 @@ export const apiFetch = async (endpoint, options = {}) => {
       return response.data;
     } 
     
-    // 🔵 Brauzerdə olduqda standart fetch istifadə edirik
+    // 🔵 Brauzerdə olduqda
     else {
-      const response = await fetch(url, {
+      const fetchOptions = {
         ...options,
+        method,
         headers,
-      });
+      };
+
+      // FormData olduqda body-ni toxunmadan ötürürük, əks halda JSON kimi
+      if (isFormData) {
+        fetchOptions.body = options.body;
+      } else if (options.body && typeof options.body !== 'string') {
+        fetchOptions.body = JSON.stringify(options.body);
+      }
+
+      const response = await fetch(url, fetchOptions);
 
       if (response.status === 401) {
         try {
@@ -133,7 +157,7 @@ export const getLookingForPlayers = () =>
 export const getUserReservationsHistory = () => 
   apiFetch('/api/reservations/my-reservations');
 
-// ⭐ Goal Video Services (Yeni Endpoint-lərə Uyğunlaşdırıldı)
+// ⭐ Goal Video Services
 export const fetchGoalsList = (userId) => {
   const endpoint = userId ? `/api/goals?userId=${userId}` : '/api/goals';
   return apiFetch(endpoint);
@@ -141,6 +165,10 @@ export const fetchGoalsList = (userId) => {
 
 export const voteGoalVideo = (goalId, userId) => 
   apiFetch(`/api/goals/${goalId}/vote?userId=${userId}`, { method: 'POST' });
+
+// 📤 Video Yükləmə Servisi (FormData Dəstəkli)
+export const uploadGoalVideo = (formData) => 
+  apiFetch('/api/goals', { method: 'POST', body: formData });
 
 // Other Services
 export const rateUserProfile = (userId, stars) => 

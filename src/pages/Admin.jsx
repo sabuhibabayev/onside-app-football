@@ -89,61 +89,49 @@ const Admin = ({
     }
   };
 
-  // VIDEO YÜKLƏMƏ SORĞUSU
-  const handleUploadGoalVideo = async (e) => {
-    e.preventDefault();
-    if (!videoTitle.trim()) {
-      alert('Zəhmət olmasa başlığı daxil edin!');
-      return;
-    }
+  // VIDEO YÜKLƏMƏ SORĞUSU (DƏQİQLƏŞDİRİLMİŞ VƏ DÜZƏLDİLMİŞ)
+const handleUploadGoalVideo = async (e) => {
+  e.preventDefault();
+  if (!videoTitle.trim()) {
+    alert('Zəhmət olmasa başlığı daxil edin!');
+    return;
+  }
 
-    setUploadingVideo(true);
+  if (!videoUrlInput.trim()) {
+    alert('Zəhmət olmasa video URL linkini daxil edin!');
+    return;
+  }
 
-    try {
-      // Əgər fayl seçilibsə Multipart/Form-Data göndəririk, yoxsa URL göndəririk
-      let payload;
-      let isFormData = false;
+  setUploadingVideo(true);
 
-      if (videoFile) {
-        isFormData = true;
-        const formData = new FormData();
-        formData.append('title', videoTitle);
-        formData.append('file', videoFile);
-        if (adminSelectedField?.id) {
-          formData.append('fieldId', adminSelectedField.id);
-        }
-        payload = formData;
-      } else {
-        payload = {
-          title: videoTitle,
-          videoUrl: videoUrlInput.trim(),
-          fieldId: adminSelectedField?.id || null
-        };
-      }
+  try {
+    // Controller @RequestBody GoalVideo qəbul etdiyi üçün JSON göndəririk
+    const payload = {
+      title: videoTitle.trim(),
+      videoUrl: videoUrlInput.trim(),
+      fieldId: adminSelectedField?.id || null,
+      voteCount: 0
+    };
 
-      const options = {
-        method: 'POST',
-        body: isFormData ? payload : JSON.stringify(payload)
-      };
+    // Endpoint: /api/goal-videos/add
+    await apiFetch('/api/goal-videos/add', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
 
-      if (!isFormData) {
-        options.headers = { 'Content-Type': 'application/json' };
-      }
-
-      await apiFetch('/api/goal-videos', options);
-
-      alert('Qol videosu uğurla əlavə edildi! ⚽🔥');
-      setShowVideoModal(false);
-      setVideoTitle('');
-      setVideoFile(null);
-      setVideoUrlInput('');
-    } catch (err) {
-      console.error('Video yükləmə xətası:', err);
-      alert('Video əlavə edilərkən xəta baş verdi: ' + (err.message || 'Server xətası'));
-    } finally {
-      setUploadingVideo(false);
-    }
-  };
+    alert('Qol videosu uğurla əlavə edildi! ⚽🔥');
+    setShowVideoModal(false);
+    setVideoTitle('');
+    setVideoFile(null);
+    setVideoUrlInput('');
+  } catch (err) {
+    console.error('Video yükləmə xətası:', err);
+    alert('Video əlavə edilərkən xəta baş verdi: ' + (err.message || 'Server xətası'));
+  } finally {
+    setUploadingVideo(false);
+  }
+};
 
   // Bugünkü aktiv rezervasiyaları useMemo ilə hesablayırıq
   const todayReservations = useMemo(() => {
