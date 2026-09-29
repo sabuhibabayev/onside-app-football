@@ -89,31 +89,43 @@ const Admin = ({
     }
   };
 
-  // VIDEO YÜKLƏMƏ SORĞUSU (DƏQİQLƏŞDİRİLMİŞ VƏ DÜZƏLDİLMİŞ)
+ // Faylı Base64 text formatına çevirən köməkçi funksiya
+const convertFileToBase64 = (file) => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = (error) => reject(error);
+  });
+};
+
+// VIDEO YÜKLƏMƏ SORĞUSU (YALNIZ QALEREYADAN SEÇİMLƏ)
 const handleUploadGoalVideo = async (e) => {
   e.preventDefault();
+
   if (!videoTitle.trim()) {
     alert('Zəhmət olmasa başlığı daxil edin!');
     return;
   }
 
-  if (!videoUrlInput.trim()) {
-    alert('Zəhmət olmasa video URL linkini daxil edin!');
+  if (!videoFile) {
+    alert('Zəhmət olmasa qalereyadan bir video seçin!');
     return;
   }
 
   setUploadingVideo(true);
 
   try {
-    // Controller @RequestBody GoalVideo qəbul etdiyi üçün JSON göndəririk
+    // Qalereyadan seçilən faylı Base64 string-ə çeviririk
+    const base64Video = await convertFileToBase64(videoFile);
+
     const payload = {
       title: videoTitle.trim(),
-      videoUrl: videoUrlInput.trim(),
+      videoUrl: base64Video, // Faylın özünü verilənlər bazasına text kimi göndəririk
       fieldId: adminSelectedField?.id || null,
       voteCount: 0
     };
 
-    // Endpoint: /api/goal-videos/add
     await apiFetch('/api/goal-videos/add', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -124,7 +136,6 @@ const handleUploadGoalVideo = async (e) => {
     setShowVideoModal(false);
     setVideoTitle('');
     setVideoFile(null);
-    setVideoUrlInput('');
   } catch (err) {
     console.error('Video yükləmə xətası:', err);
     alert('Video əlavə edilərkən xəta baş verdi: ' + (err.message || 'Server xətası'));
@@ -329,66 +340,54 @@ const handleUploadGoalVideo = async (e) => {
         </div>
 
         {/* QOL VIDEOSU YÜKLƏMƏ MODALI */}
-        {showVideoModal && (
-          <div style={styles.modalOverlay}>
-            <div style={styles.modalContent}>
-              <h3 style={{ margin: '0 0 15px 0', fontSize: '16px', color: '#111' }}>⚽ Qol Videosu Əlavə Et</h3>
-              <form onSubmit={handleUploadGoalVideo}>
-                <div style={{ marginBottom: '12px' }}>
-                  <label style={styles.label}>Qol Başlığı / Təsviri</label>
-                  <input 
-                    type="text" 
-                    placeholder="məs: Elvin - Mükəmməl uzaq zərbə!" 
-                    value={videoTitle}
-                    onChange={(e) => setVideoTitle(e.target.value)}
-                    style={styles.modalInput}
-                    required
-                  />
-                </div>
+{showVideoModal && (
+  <div style={styles.modalOverlay}>
+    <div style={styles.modalContent}>
+      <h3 style={{ margin: '0 0 15px 0', fontSize: '16px', color: '#111' }}>⚽ Qol Videosu Əlavə Et</h3>
+      <form onSubmit={handleUploadGoalVideo}>
+        <div style={{ marginBottom: '12px' }}>
+          <label style={styles.label}>Qol Başlığı / Təsviri</label>
+          <input 
+            type="text" 
+            placeholder="məs: Elvin - Mükəmməl uzaq zərbə!" 
+            value={videoTitle}
+            onChange={(e) => setVideoTitle(e.target.value)}
+            style={styles.modalInput}
+            required
+          />
+        </div>
 
-                <div style={{ marginBottom: '12px' }}>
-                  <label style={styles.label}>Fayldan Video Seç (MP4)</label>
-                  <input 
-                    type="file" 
-                    accept="video/*"
-                    onChange={(e) => setVideoFile(e.target.files[0])}
-                    style={{ fontSize: '12px', width: '100%' }}
-                  />
-                </div>
+        <div style={{ marginBottom: '15px' }}>
+          <label style={styles.label}>Qalereyadan Video Seç</label>
+          <input 
+            type="file" 
+            accept="video/*"
+            onChange={(e) => setVideoFile(e.target.files[0])}
+            style={{ fontSize: '13px', width: '100%' }}
+            required
+          />
+        </div>
 
-                <div style={{ textAlign: 'center', margin: '10px 0', color: '#888', fontSize: '12px' }}>və ya</div>
-
-                <div style={{ marginBottom: '15px' }}>
-                  <label style={styles.label}>Direct Video Linki (URL)</label>
-                  <input 
-                    type="url" 
-                    placeholder="https://example.com/video.mp4" 
-                    value={videoUrlInput}
-                    onChange={(e) => setVideoUrlInput(e.target.value)}
-                    style={styles.modalInput}
-                  />
-                </div>
-
-                <div style={{ display: 'flex', gap: '10px' }}>
-                  <button 
-                    type="button" 
-                    onClick={() => setShowVideoModal(false)}
-                    style={styles.cancelBtn}
-                  >
-                    Ləğv et
-                  </button>
-                  <button 
-                    type="submit" 
-                    disabled={uploadingVideo}
-                    style={styles.submitBtn}
-                  >
-                    {uploadingVideo ? 'Yüklənir...' : 'Yüklə'}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button 
+            type="button" 
+            onClick={() => setShowVideoModal(false)}
+            style={styles.cancelBtn}
+          >
+            Ləğv et
+          </button>
+          <button 
+            type="submit" 
+            disabled={uploadingVideo}
+            style={styles.submitBtn}
+          >
+            {uploadingVideo ? 'Yüklənir...' : 'Yüklə'}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+)}
       </div>
     );
   }
