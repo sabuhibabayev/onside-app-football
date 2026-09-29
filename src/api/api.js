@@ -1,12 +1,9 @@
-// Cihazın harada işlədiyindən asılı olmayaraq canlı Render backend-indən istifadə edirik
-const getBaseUrl = () => {
-  if (process.env.REACT_APP_API_URL) return process.env.REACT_APP_API_URL;
-  return 'https://onside-app-backend.onrender.com';
-};
+import { CapacitorHttp, Capacitor } from '@capacitor/core';
+
+// Canlı Render Backend URL-i
+const BASE_URL = 'https://onside-app-backend.onrender.com';
 
 export const apiFetch = async (endpoint, options = {}) => {
-  const BASE_URL = getBaseUrl();
-  
   // LocalStorage-dən təhlükəsiz token oxunması
   let token = null;
   try {
@@ -15,49 +12,78 @@ export const apiFetch = async (endpoint, options = {}) => {
     console.warn('LocalStorage access error:', e);
   }
   
-  // Headers obyektinin hazırlanması
+  // Headers hazırlanması
   const headers = {
     'Content-Type': 'application/json',
     ...options.headers,
   };
 
-  // Yalnız token həqiqətən VARSA və validdirsə Header-ə əlavə olunur
   if (token && token !== 'null' && token !== 'undefined') {
     const cleanToken = token.startsWith('Bearer ') ? token.replace('Bearer ', '') : token;
     headers['Authorization'] = `Bearer ${cleanToken}`;
   }
 
+  const url = `${BASE_URL}${endpoint}`;
+  const method = (options.method || 'GET').toUpperCase();
+
   try {
-    const response = await fetch(`${BASE_URL}${endpoint}`, {
-      ...options,
-      headers,
-    });
+    // 🟢 Əgər tətbiq Mobil Cihazda (Android) işləyirsə, DOĞMA NATIVE HTTP çağırırıq (CORS və 10.0.2.2 xətalarını yan keçir)
+    if (Capacitor.isNativePlatform()) {
+      const response = await CapacitorHttp.request({
+        url,
+        method,
+        headers,
+        data: options.body ? JSON.parse(options.body) : undefined,
+      });
 
-    // 🔴 401 Unauthorized olduqda avtomatik Session Logout
-    if (response.status === 401) {
-      try {
-        localStorage.removeItem('token');
-        localStorage.removeItem('role');
-      } catch (e) {}
-      window.location.href = '/';
-      throw new Error('Sessiyanın vaxtı bitdi. Yenidən daxil olun.');
-    }
-
-    if (!response.ok) {
-      let errorMessage = `Xəta baş verdi: ${response.status}`;
-      try {
-        const errorData = await response.json();
-        errorMessage = errorData.message || errorData.error || errorMessage;
-      } catch {
-        const errorText = await response.text();
-        if (errorText) errorMessage = errorText;
+      if (response.status === 401) {
+        try {
+          localStorage.removeItem('token');
+          localStorage.removeItem('role');
+        } catch (e) {}
+        window.location.href = '/';
+        throw new Error('Sessiyanın vaxtı bitdi. Yenidən daxil olun.');
       }
-      throw new Error(errorMessage);
-    }
 
-    // Boş cavab gəldikdə (204 No Content və ya 200 OK void)
-    const text = await response.text();
-    return text ? JSON.parse(text) : {};
+      if (response.status < 200 || response.status >= 300) {
+        const errorMsg = response.data?.message || response.data?.error || `Xəta baş verdi: ${response.status}`;
+        throw new Error(errorMsg);
+      }
+
+      return response.data;
+    } 
+    
+    // 🔵 Brauzerdə olduqda standart fetch istifadə edirik
+    else {
+      const response = await fetch(url, {
+        ...options,
+        headers,
+      });
+
+      if (response.status === 401) {
+        try {
+          localStorage.removeItem('token');
+          localStorage.removeItem('role');
+        } catch (e) {}
+        window.location.href = '/';
+        throw new Error('Sessiyanın vaxtı bitdi. Yenidən daxil olun.');
+      }
+
+      if (!response.ok) {
+        let errorMessage = `Xəta baş verdi: ${response.status}`;
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.message || errorData.error || errorMessage;
+        } catch {
+          const errorText = await response.text();
+          if (errorText) errorMessage = errorText;
+        }
+        throw new Error(errorMessage);
+      }
+
+      const text = await response.text();
+      return text ? JSON.parse(text) : {};
+    }
   } catch (error) {
     console.error(`[API Error] -> ${endpoint}:`, error.message);
     throw error;
