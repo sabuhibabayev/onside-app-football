@@ -90,6 +90,7 @@ const Admin = ({
   };
 
  // Faylı Base64 text formatına çevirən köməkçi funksiya
+// Base64-ə çevirmə funksiyası
 const convertFileToBase64 = (file) => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -99,7 +100,7 @@ const convertFileToBase64 = (file) => {
   });
 };
 
-// VIDEO YÜKLƏMƏ SORĞUSU (YALNIZ QALEREYADAN SEÇİMLƏ)
+// VIDEO YÜKLƏMƏ SORĞUSU
 const handleUploadGoalVideo = async (e) => {
   e.preventDefault();
 
@@ -109,19 +110,18 @@ const handleUploadGoalVideo = async (e) => {
   }
 
   if (!videoFile) {
-    alert('Zəhmət olmasa qalereyadan bir video seçin!');
+    alert('Zəhmət olmasa videonu seçin!');
     return;
   }
 
   setUploadingVideo(true);
 
   try {
-    // Qalereyadan seçilən faylı Base64 string-ə çeviririk
     const base64Video = await convertFileToBase64(videoFile);
 
     const payload = {
       title: videoTitle.trim(),
-      videoUrl: base64Video, // Faylın özünü verilənlər bazasına text kimi göndəririk
+      videoUrl: base64Video,
       fieldId: adminSelectedField?.id || null,
       voteCount: 0
     };
@@ -138,7 +138,7 @@ const handleUploadGoalVideo = async (e) => {
     setVideoFile(null);
   } catch (err) {
     console.error('Video yükləmə xətası:', err);
-    alert('Video əlavə edilərkən xəta baş verdi: ' + (err.message || 'Server xətası'));
+    alert('Xəta baş verdi: ' + (err.message || 'Server xətası'));
   } finally {
     setUploadingVideo(false);
   }
@@ -345,6 +345,7 @@ const handleUploadGoalVideo = async (e) => {
     <div style={styles.modalContent}>
       <h3 style={{ margin: '0 0 15px 0', fontSize: '16px', color: '#111' }}>⚽ Qol Videosu Əlavə Et</h3>
       <form onSubmit={handleUploadGoalVideo}>
+        
         <div style={{ marginBottom: '12px' }}>
           <label style={styles.label}>Qol Başlığı / Təsviri</label>
           <input 
@@ -384,6 +385,7 @@ const handleUploadGoalVideo = async (e) => {
             {uploadingVideo ? 'Yüklənir...' : 'Yüklə'}
           </button>
         </div>
+
       </form>
     </div>
   </div>
